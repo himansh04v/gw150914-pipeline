@@ -1,0 +1,792 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GW150914 Expo</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;800&family=DM+Mono:wght@400;500&family=Nunito:wght@400;700;800&display=swap">
+<style>
+/* Layout: a night-sky lab. Simulation and pitch plot on the left, controls and live numbers on the right; one column on phones. */
+:root {
+  --sky: #070614;
+  --bg: #0b0a1c;
+  --panel: #141231;
+  --panel-2: #1c1944;
+  --line: #2f2c63;
+  --ink: #ece9ff;
+  --ink-dim: #a7a4d4;
+  --bh1: #4fd8d2;
+  --bh2: #ffb04a;
+  --final: #c9a7ff;
+  --wave: #6fb7ff;
+  --good: #7be08f;
+  --font-display: 'Bricolage Grotesque', system-ui, sans-serif;
+  --font-body: 'Nunito', system-ui, sans-serif;
+  --font-data: 'DM Mono', ui-monospace, monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.5;
+  padding-inline: 16px;
+  padding-block: 28px 48px;
+}
+.wrap { max-width: 1120px; margin-inline: auto; display: grid; gap: 24px; }
+h1, h2 { font-family: var(--font-display); text-wrap: balance; margin: 0; line-height: 1.1; }
+h1 { font-size: clamp(2.1rem, 6vw, 3.6rem); font-weight: 800; letter-spacing: -0.02em; }
+h2 { font-size: 1.3rem; font-weight: 600; }
+p { margin: 0; }
+.lede { color: var(--ink-dim); font-size: 1.1rem; max-width: 60ch; margin-top: 10px; }
+.fact { font-family: var(--font-data); font-size: 0.85rem; color: var(--bh2); margin-top: 12px; }
+
+.lab { display: grid; gap: 20px; grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 900px) { .lab { grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); align-items: start; } }
+.col { display: grid; gap: 20px; min-width: 0; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 16px; min-width: 0; }
+.panel h2 { margin-bottom: 12px; }
+.small { font-size: 0.85rem; color: var(--ink-dim); }
+
+canvas { display: block; width: 100%; height: auto; border-radius: 12px; background: var(--sky); }
+#sim { aspect-ratio: 1; max-width: 100%; }
+#chirp { aspect-ratio: 10 / 3; }
+
+.legend { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 10px; font-size: 0.9rem; }
+.dot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; }
+
+/* controls */
+.slider { display: grid; gap: 6px; margin-bottom: 16px; }
+.slider label { display: flex; justify-content: space-between; gap: 8px; font-weight: 700; }
+.slider output { font-family: var(--font-data); font-weight: 500; }
+input[type=range] { width: 100%; height: 36px; background: transparent; cursor: pointer; }
+#m1 { accent-color: var(--bh1); }
+#m2 { accent-color: var(--bh2); }
+.presets { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+button { font: inherit; cursor: pointer; }
+.chip {
+  background: var(--panel-2); color: var(--ink); border: 1px solid var(--line);
+  border-radius: 999px; padding: 8px 14px; min-height: 40px; font-weight: 700; font-size: 0.9rem;
+}
+.chip:hover { border-color: var(--final); }
+.go {
+  width: 100%; min-height: 58px; border: 0; border-radius: 14px;
+  background: var(--bh2); color: #1c1100; font-family: var(--font-display);
+  font-weight: 800; font-size: 1.35rem; letter-spacing: 0.01em;
+}
+.go:hover { filter: brightness(1.08); }
+:focus-visible { outline: 3px solid var(--wave); outline-offset: 2px; }
+.snd { display: flex; align-items: center; gap: 10px; margin-top: 12px; font-weight: 700; min-height: 36px; }
+.sndsrc { flex-wrap: wrap; }
+.sndsrc select { background: var(--panel-2); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font: inherit; max-width: 100%; }
+.snd input { width: 22px; height: 22px; accent-color: var(--bh1); }
+
+/* numbers */
+dl { margin: 0; display: grid; gap: 0; }
+.row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 16px; padding: 10px 0; border-top: 1px solid var(--line); align-items: baseline; }
+.row:first-child { border-top: 0; padding-top: 0; }
+dt { color: var(--ink-dim); }
+dd { margin: 0; font-family: var(--font-data); font-variant-numeric: tabular-nums; text-align: right; overflow-wrap: anywhere; }
+.verdict {
+  margin-top: 14px; padding: 14px; border-radius: 12px; background: var(--panel-2);
+  border: 1px solid var(--good); display: grid; gap: 4px;
+}
+.verdict .big { font-family: var(--font-display); font-size: 2rem; font-weight: 800; color: var(--good); font-variant-numeric: tabular-nums; }
+
+/* bottom */
+.two { display: grid; gap: 20px; grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 900px) { .two { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
+ol { margin: 0; padding-left: 1.3em; display: grid; gap: 10px; }
+.stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.stat { background: var(--panel-2); border-radius: 12px; padding: 12px; }
+.stat b { display: block; font-family: var(--font-data); font-weight: 500; font-size: 1.5rem; color: var(--wave); font-variant-numeric: tabular-nums; }
+.stat span { font-size: 0.85rem; color: var(--ink-dim); }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto; } }
+
+.tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+.tabs button {
+  background: var(--panel-2); color: var(--ink); border: 1px solid var(--line); border-radius: 999px;
+  padding: 10px 18px; min-height: 44px; font-weight: 800; font-size: 1rem;
+}
+.tabs button[aria-selected=true] { background: var(--bh2); color: #1c1100; border-color: var(--bh2); }
+#scan { aspect-ratio: 800 / 540; }
+.scan-controls { display: flex; flex-wrap: wrap; gap: 12px 18px; align-items: center; margin-top: 14px; }
+.scan-controls .go { width: auto; min-height: 50px; padding-inline: 22px; font-size: 1.1rem; }
+.scan-controls label { display: flex; align-items: center; gap: 8px; font-weight: 700; }
+.scan-controls select { background: var(--panel-2); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font: inherit; }
+.scan-controls input[type=range] { width: 160px; }
+.scrub { display: grid; gap: 4px; margin-top: 12px; }
+.gal { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+.gal figure { margin: 0; background: var(--panel-2); border-radius: 12px; padding: 10px; min-width: 0; }
+.gal img { width: 100%; height: auto; border-radius: 8px; background: #fff; }
+.gal figcaption { font-size: 0.85rem; color: var(--ink-dim); margin-top: 6px; }
+.clips { display: grid; gap: 14px; }
+.clips audio { width: 100%; }
+table.cmp { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
+table.cmp th, table.cmp td { text-align: left; padding: 8px 10px; border-top: 1px solid var(--line); }
+table.cmp td:nth-child(n+2), table.cmp th:nth-child(n+2) { font-family: var(--font-data); }
+.tablewrap { overflow-x: auto; }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>When Black Holes Collide</h1>
+    <p class="lede">We found two black holes colliding in real LIGO data from 14 September 2015, then turned it into pictures and sound. Pick a tab.</p>
+    <p class="fact">If our Sun became a black hole, it would be only about 6 km across.</p>
+    <nav class="tabs" role="tablist" aria-label="Sections">
+      <button role="tab" aria-selected="true" data-tab="scan">Find the signal</button>
+      <button role="tab" aria-selected="false" data-tab="lab">Crash lab</button>
+      <button role="tab" aria-selected="false" data-tab="res">Our results</button>
+    </nav>
+  </header>
+
+  <div id="tab-lab" hidden>
+  <main class="lab">
+    <div class="col">
+      <section class="panel" aria-label="Collision simulation">
+        <canvas id="sim" role="img" aria-label="Animation of two black holes spiralling together, merging, and sending out ripples in space"></canvas>
+        <div class="legend">
+          <span><span class="dot" style="background:var(--bh1)"></span>Black hole 1</span>
+          <span><span class="dot" style="background:var(--bh2)"></span>Black hole 2</span>
+          <span><span class="dot" style="background:var(--final)"></span>New black hole</span>
+          <span><span class="dot" style="background:var(--wave)"></span>Ripples in space</span>
+        </div>
+        <p class="small" style="margin-top:8px">Circle size shows each black hole's surface area on one shared scale.</p>
+      </section>
+      <section class="panel" aria-label="Pitch over time">
+        <h2>The chirp you hear</h2>
+        <canvas id="chirp" role="img" aria-label="Graph of the sound pitch rising during the collision"></canvas>
+        <p class="small" style="margin-top:8px">As the black holes circle faster, the pitch climbs. Our team found this same rising curve in real LIGO data.</p>
+      </section>
+    </div>
+
+    <div class="col">
+      <section class="panel" aria-label="Controls">
+        <h2>Choose your black holes</h2>
+        <div class="slider">
+          <label for="m1"><span><span class="dot" style="background:var(--bh1)"></span>Black hole 1</span><output id="o1">35.6 Suns</output></label>
+          <input id="m1" type="range" min="5" max="60" step="0.1" value="35.6">
+        </div>
+        <div class="slider">
+          <label for="m2"><span><span class="dot" style="background:var(--bh2)"></span>Black hole 2</span><output id="o2">30.6 Suns</output></label>
+          <input id="m2" type="range" min="5" max="60" step="0.1" value="30.6">
+        </div>
+        <div class="presets">
+          <button class="chip" data-m1="35.6" data-m2="30.6">Real one: GW150914</button>
+          <button class="chip" data-m1="30" data-m2="30">Twins</button>
+          <button class="chip" data-m1="55" data-m2="12">Big and small</button>
+          <button class="chip" data-m1="12" data-m2="10">Light pair</button>
+        </div>
+        <button id="go" class="go">Crash them!</button>
+        <label class="snd"><input id="snd" type="checkbox" checked> Play the sound</label>
+        <label class="snd sndsrc">Sound type
+          <select id="snd-src"><option value="synth">Made-up chirp (follows the sliders)</option></select>
+        </label>
+        <p class="small" id="snd-hint" hidden>This is the real GW150914 sound from our pipeline. The picture follows your sliders, and the merger flash is lined up with the loudest moment of the clip. Press <b>Real one: GW150914</b> for a true match.</p>
+      </section>
+
+      <section class="panel" aria-label="Live numbers">
+        <h2>The numbers, live</h2>
+        <dl>
+          <div class="row"><dt>Width of each hole (radius)</dt><dd><span id="r1">0</span> km / <span id="r2">0</span> km</dd></div>
+          <div class="row"><dt>Surface area before (added up)</dt><dd><span id="ab">0</span> km²</dd></div>
+          <div class="row"><dt>Surface area after</dt><dd><span id="aa">0</span> km²</dd></div>
+          <div class="row"><dt>Mass turned into ripples</dt><dd><span id="dm">0</span> Suns</dd></div>
+          <div class="row"><dt>Energy in those ripples</dt><dd id="en">0</dd></div>
+          <div class="row"><dt>New black hole</dt><dd><span id="mf">0</span> Suns, spin <span id="chi">0</span></dd></div>
+        </dl>
+        <div class="verdict" aria-live="polite">
+          <span class="big" id="ratio">×1.00</span>
+          <span id="vtext">The total surface area can only grow. That is Hawking's area rule.</span>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <section class="two">
+    <div class="panel">
+      <h2>Try these</h2>
+      <ol>
+        <li>Press <b>Real one: GW150914</b>, then crash them. This is the collision LIGO detected on 14 September 2015.</li>
+        <li>Make both black holes very heavy. Does the sound get higher or lower?</li>
+        <li>Make one black hole tiny. Does the surface area still grow? Try to find a pair where it shrinks.</li>
+        <li>Watch the ripples. How do they change just before the crash?</li>
+      </ol>
+    </div>
+    <div class="panel">
+      <h2>What our team found in real LIGO data</h2>
+      <div class="stats">
+        <div class="stat"><b>≈ 24</b><span>combined signal strength, matching the published value</span></div>
+        <div class="stat"><b>≈ 31 Suns</b><span>chirp mass from our template search</span></div>
+        <div class="stat"><b>≈ 8 ms</b><span>delay between the two detectors (published: 6.9 ms)</span></div>
+        <div class="stat"><b>≈ 0.2 s</b><span>how long the real chirp lasts</span></div>
+      </div>
+      <p class="small" style="margin-top:12px">This lab is a simplified cartoon. The orbit shape and ripple sizes are not to scale, and the area and energy numbers use fitted formulas, so they are approximate. For the real GW150914 masses they land close to the published values.</p>
+    </div>
+  </section>
+  </div>
+
+  <div id="tab-scan">
+    <section class="panel">
+      <h2>Watch the search</h2>
+      <p class="small" style="margin-bottom:12px">A template (the predicted chirp, orange) slides along the real data. At each spot we measure how well they match. That match score is the SNR. The sound follows the score: a low hum for noise, a high tone and a bell when the signal is found.</p>
+      <p id="scan-missing" hidden class="small">The search data was not found. Run <b>make_expo_page.py</b> after saving <b>data/mf_animation_inputs.npz</b>.</p>
+      <div id="scan-ui">
+        <canvas id="scan" role="img" aria-label="Animation of a template sliding along detector data while the match score is drawn"></canvas>
+        <div class="scan-controls">
+          <button id="s-play" class="go">Play the search</button>
+          <button id="s-restart" class="chip">Restart</button>
+          <label>Speed
+            <select id="s-speed"><option value="0.5">Slow</option><option value="1" selected>Medium</option><option value="2">Fast</option></select>
+          </label>
+          <label id="s-src-wrap">SNR curve
+            <select id="s-src"><option value="pyc">Our PyCBC result</option><option value="hand">Hand-written filter</option></select>
+          </label>
+          <label>Threshold <input id="s-thr" type="range" min="4" max="12" step="0.5" value="8"> <output id="s-thr-o">8</output></label>
+          <label><input id="s-snd" type="checkbox" checked> Play the sound</label>
+        </div>
+        <div class="scrub">
+          <label for="s-pos" class="small">Or drag the template yourself</label>
+          <input id="s-pos" type="range" min="0" max="1000" step="1" value="0">
+        </div>
+        <p class="small" id="s-note" style="margin-top:10px"></p>
+      </div>
+    </section>
+  </div>
+
+  <div id="tab-res" hidden>
+    <section class="panel">
+      <h2>From noise to a detection</h2>
+      <div class="gal">__GALLERY__</div>
+    </section>
+    <section class="panel" style="margin-top:20px">
+      <h2>Listen</h2>
+      <div class="clips">__AUDIO__</div>
+    </section>
+    <section class="panel" style="margin-top:20px">
+      <h2>Ours against the published values</h2>
+      <div class="tablewrap"><table class="cmp">
+        <tr><th>Quantity</th><th>Our result</th><th>Published (LIGO)</th></tr>
+        <tr><td>Combined signal strength (SNR)</td><td>23.8 (H1 19.4, L1 13.8)</td><td>about 24</td></tr>
+        <tr><td>Chirp mass, detector frame</td><td>31.0 (29.5 to 32.6)</td><td>about 31 (28.6 x 1.09)</td></tr>
+        <tr><td>Delay between detectors</td><td>about 8 ms</td><td>6.9 ms</td></tr>
+        <tr><td>Horizon area growth</td><td>x1.56</td><td>never decreases</td></tr>
+        <tr><td>Mass turned into waves</td><td>3.1 solar masses</td><td>about 3 solar masses</td></tr>
+      </table></div>
+      <p class="small" style="margin-top:10px">Published values: Abbott et al. 2016, PRL 116, 061102, and the GWTC-1 catalog (2019).</p>
+    </section>
+  </div>
+</div>
+
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var css = getComputedStyle(document.documentElement);
+  function hex(n) {
+    var h = css.getPropertyValue(n).trim().replace('#', '');
+    return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
+  }
+  var C = { bh1: hex('--bh1'), bh2: hex('--bh2'), fin: hex('--final'), wave: hex('--wave'), ink: hex('--ink-dim') };
+  var SKY = css.getPropertyValue('--sky').trim();
+  function rgba(c, a) { return 'rgba(' + c[0] + ',' + c[1] + ',' + c[2] + ',' + a + ')'; }
+
+  var GM = 1.4766, SCH = 2 * GM, PXKM = 0.42 / SCH, R0 = 130, T = 9, CX = 200, CY = 200, W = 400;
+  var TAU = Math.PI * 2;
+
+  var cv = $('sim'), ctx = cv.getContext('2d');
+  cv.width = 800; cv.height = 800; ctx.scale(2, 2);
+  var cc = $('chirp'), cx2 = cc.getContext('2d');
+  cc.width = 800; cc.height = 240; cx2.scale(2, 2);
+
+  var seed = 7;
+  function rnd() { seed = (seed * 16807) % 2147483647; return seed / 2147483647; }
+  var stars = [];
+  for (var i = 0; i < 90; i++) stars.push({ x: rnd() * W, y: rnd() * W, s: 0.4 + rnd() * 1.1, a: 0.25 + rnd() * 0.6 });
+
+  var m1 = 35.6, m2 = 30.6, P = {};
+  function physics() {
+    var M = m1 + m2, eta = m1 * m2 / (M * M);
+    var chi = Math.min(0.95, 2 * Math.sqrt(3) * eta - 3.5171 * eta * eta + 2.5763 * Math.pow(eta, 3));
+    var frac = 0.048 * Math.pow(4 * eta, 2), Mf = M * (1 - frac);
+    var A1 = 16 * Math.PI * Math.pow(m1 * GM, 2), A2 = 16 * Math.PI * Math.pow(m2 * GM, 2);
+    var Af = 8 * Math.PI * Math.pow(Mf * GM, 2) * (1 + Math.sqrt(1 - chi * chi));
+    var r1 = m1 * 0.42, r2 = m2 * 0.42, rm = r1 + r2, rf = PXKM * Math.sqrt(Af / (4 * Math.PI));
+    var xm = Math.pow(rm / R0, 4), tauM = T * xm;
+    var w0 = 1.8 * Math.sqrt(M / 65), fA0 = 70 * Math.sqrt(65 / M);
+    var fEnd = fA0 * Math.pow(xm, -0.375);
+    P = { M: M, eta: eta, chi: chi, frac: frac, Mf: Mf, A1: A1, A2: A2, Af: Af, r1: r1, r2: r2, rm: rm, rf: rf,
+          xm: xm, tauM: tauM, w0: w0, fA0: fA0, fEnd: fEnd, dm: M * frac };
+  }
+
+  function fmt(n) { return Math.round(n).toLocaleString('en-US'); }
+  function readouts() {
+    $('o1').textContent = m1.toFixed(1) + ' Suns';
+    $('o2').textContent = m2.toFixed(1) + ' Suns';
+    $('r1').textContent = (m1 * SCH).toFixed(1);
+    $('r2').textContent = (m2 * SCH).toFixed(1);
+    $('ab').textContent = fmt(P.A1 + P.A2);
+    $('aa').textContent = fmt(P.Af);
+    $('dm').textContent = P.dm.toFixed(1);
+    var J = P.dm * 1.989e30 * Math.pow(2.998e8, 2);
+    var parts = J.toExponential(1).split('e');
+    $('en').innerHTML = parts[0] + ' × 10<sup>' + parseInt(parts[1], 10) + '</sup> joules';
+    $('mf').textContent = P.Mf.toFixed(1);
+    $('chi').textContent = P.chi.toFixed(2);
+    var ratio = P.Af / (P.A1 + P.A2);
+    $('ratio').textContent = '×' + ratio.toFixed(2) + ' bigger surface';
+    $('vtext').textContent = ratio > 1
+      ? 'The new black hole has more surface area than the two old ones added together. Hawking\'s area rule says this can never shrink.'
+      : 'The area shrank, which the rule forbids, so this estimate is off.';
+  }
+
+  /* ---------- simulation state ---------- */
+  var S = {};
+  function reset() {
+    S = { mode: 'idle', tau: T, phi: 0.6, k: 0, t: 0, el: 0, rd: 0, rings: [], pts: [], x: 1, w: P.w0, flash: 0, ringAcc: 0 };
+    audioStop(true);
+    setButton();
+  }
+  function setButton() {
+    $('go').textContent = S.mode === 'idle' ? 'Crash them!' : (S.mode === 'done' ? 'Crash again' : 'Restart');
+  }
+
+  function emit(alpha, lw) { S.rings.push({ r: 12, a: alpha, lw: lw || 1.6 }); }
+
+  function doMerge() {
+    S.mode = 'ring'; S.rd = 0; S.flash = 1; S.ringAcc = 0;
+    emit(0.8, 2.4);
+    setButton();
+  }
+
+  function step(dt) {
+    S.t += dt;
+    var i;
+    if (S.mode === 'inspiral') {
+      var sub = 4, h = dt / sub;
+      for (i = 0; i < sub && S.mode === 'inspiral'; i++) {
+        var x = S.tau / T, w = P.w0 * Math.pow(x, -0.375);
+        S.phi += w * h; S.tau -= h; S.x = Math.max(x, P.xm); S.w = w; S.el += h;
+        var k = Math.floor(S.phi / Math.PI);
+        if (k > S.k) { S.k = k; emit(Math.min(0.75, 0.15 + 0.1 * Math.pow(w / P.w0, 0.7)), 1.4); }
+        if (S.tau <= P.tauM) doMerge();
+      }
+      var xx = Math.max(S.x, P.xm), f = P.fA0 * Math.pow(xx, -0.375);
+      var ampN = (Math.pow(1 / xx, 0.25) - 1) / (Math.pow(1 / P.xm, 0.25) - 1);
+      S.pts.push([S.el, f]);
+      audioSet(f, 0.03 + 0.22 * Math.max(0, Math.min(1, ampN)));
+    } else if (S.mode === 'ring') {
+      S.rd += dt; S.el += dt;
+      S.ringAcc += dt;
+      if (S.ringAcc > 0.22 && S.rd < 1.4) { S.ringAcc = 0; emit(0.55 * Math.exp(-S.rd / 0.6), 1.8); }
+      if (S.rd < 0.5) S.pts.push([S.el, P.fEnd * 0.95]);
+      audioSet(P.fEnd * 0.95, 0.26 * Math.exp(-S.rd / 0.45));
+      S.flash = Math.max(0, 1 - S.rd / 0.6);
+      if (S.rd > 1.8) { S.mode = 'done'; audioStop(false); setButton(); }
+    } else if (S.mode === 'done') {
+      S.rd += dt; S.flash = 0;
+    }
+    for (i = S.rings.length - 1; i >= 0; i--) {
+      var rg = S.rings[i];
+      rg.r += 125 * dt;
+      if (rg.r > 290) S.rings.splice(i, 1);
+    }
+  }
+
+  function bh(x, y, r, col) {
+    var g = ctx.createRadialGradient(x, y, r * 0.9, x, y, r * 2.4);
+    g.addColorStop(0, rgba(col, 0.55)); g.addColorStop(1, rgba(col, 0));
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r * 2.4, 0, TAU); ctx.fill();
+    ctx.fillStyle = '#000'; ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill();
+    ctx.strokeStyle = rgba(col, 1); ctx.lineWidth = 1.6; ctx.beginPath(); ctx.arc(x, y, r + 0.8, 0, TAU); ctx.stroke();
+  }
+
+  var STATUS = { idle: 'Ready', inspiral: 'Spiralling in…', ring: 'The new black hole wobbles', done: 'Merged' };
+  function draw() {
+    ctx.fillStyle = SKY; ctx.fillRect(0, 0, W, W);
+    var i;
+    for (i = 0; i < stars.length; i++) {
+      var s = stars[i];
+      ctx.fillStyle = 'rgba(236,233,255,' + s.a + ')';
+      ctx.fillRect(s.x, s.y, s.s, s.s);
+    }
+    for (i = 0; i < S.rings.length; i++) {
+      var rg = S.rings[i], fade = Math.max(0, 1 - rg.r / 250);
+      ctx.strokeStyle = rgba(C.wave, rg.a * fade);
+      ctx.lineWidth = rg.lw;
+      ctx.beginPath(); ctx.arc(CX, CY, rg.r, 0, TAU); ctx.stroke();
+    }
+    if (S.mode === 'idle' || S.mode === 'inspiral') {
+      var xr = S.mode === 'idle' ? 1 : Math.max(S.x, P.xm);
+      var r = R0 * Math.pow(xr, 0.25);
+      if (S.mode === 'idle') {
+        ctx.setLineDash([3, 5]); ctx.strokeStyle = 'rgba(167,164,212,0.25)'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.arc(CX, CY, R0 * m2 / P.M, 0, TAU); ctx.stroke();
+        ctx.beginPath(); ctx.arc(CX, CY, R0 * m1 / P.M, 0, TAU); ctx.stroke();
+        ctx.setLineDash([]);
+      }
+      var c = Math.cos(S.phi), sn = Math.sin(S.phi);
+      bh(CX - r * (m2 / P.M) * c, CY - r * (m2 / P.M) * sn, P.r1, C.bh1);
+      bh(CX + r * (m1 / P.M) * c, CY + r * (m1 / P.M) * sn, P.r2, C.bh2);
+    } else {
+      var e = Math.min(1, S.rd / 0.5); e = e * e * (3 - 2 * e);
+      var size = P.rm + (P.rf - P.rm) * e;
+      size *= 1 + 0.22 * Math.exp(-S.rd / 0.4) * Math.sin(S.rd * 18);
+      bh(CX, CY, size, C.fin);
+    }
+    if (S.flash > 0) {
+      var fr = 24 + (1 - S.flash) * 160;
+      var g = ctx.createRadialGradient(CX, CY, 0, CX, CY, fr);
+      g.addColorStop(0, 'rgba(255,248,235,' + (0.9 * S.flash) + ')');
+      g.addColorStop(1, 'rgba(201,167,255,0)');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(CX, CY, fr, 0, TAU); ctx.fill();
+    }
+    ctx.font = '700 13px Nunito, system-ui, sans-serif';
+    ctx.fillStyle = 'rgba(167,164,212,0.9)';
+    ctx.textAlign = 'left';
+    ctx.fillText(STATUS[S.mode], 14, 24);
+    if (S.mode === 'idle') {
+      ctx.textAlign = 'center';
+      ctx.fillText('Press "Crash them!"', CX, W - 18);
+    }
+  }
+
+  function drawChirp() {
+    var w = 400, h = 120, L = 46, B = 20, Tp = 10, Rr = 10;
+    cx2.fillStyle = SKY; cx2.fillRect(0, 0, w, h);
+    var tmax = (T - P.tauM) + 0.6, fmax = Math.ceil(P.fEnd * 1.1 / 50) * 50;
+    function X(t) { return L + (t / tmax) * (w - L - Rr); }
+    function Y(f) { return h - B - (f / fmax) * (h - B - Tp); }
+    cx2.strokeStyle = 'rgba(47,44,99,1)'; cx2.lineWidth = 1;
+    cx2.beginPath(); cx2.moveTo(L, Tp); cx2.lineTo(L, h - B); cx2.lineTo(w - Rr, h - B); cx2.stroke();
+    cx2.font = '10px "DM Mono", monospace'; cx2.fillStyle = rgba(C.ink, 0.95);
+    cx2.textAlign = 'right';
+    cx2.fillText(fmax + ' Hz', L - 5, Tp + 8);
+    cx2.fillText('0', L - 5, h - B);
+    cx2.textAlign = 'right';
+    cx2.fillText('time', w - Rr, h - 5);
+    if (S.pts.length > 1) {
+      cx2.strokeStyle = rgba(C.wave, 1); cx2.lineWidth = 2; cx2.lineJoin = 'round';
+      cx2.beginPath();
+      for (var i = 0; i < S.pts.length; i++) {
+        var px = X(S.pts[i][0]), py = Y(S.pts[i][1]);
+        if (i === 0) cx2.moveTo(px, py); else cx2.lineTo(px, py);
+      }
+      cx2.stroke();
+      var last = S.pts[S.pts.length - 1];
+      cx2.fillStyle = rgba(C.bh2, 1); cx2.beginPath(); cx2.arc(X(last[0]), Y(last[1]), 3.5, 0, TAU); cx2.fill();
+    } else {
+      cx2.textAlign = 'center'; cx2.fillStyle = rgba(C.ink, 0.8);
+      cx2.fillText('The pitch curve draws here during the crash', (L + w) / 2, h / 2);
+    }
+  }
+
+  /* ---------- sound ---------- */
+  var AC = null, osc = null, osc2 = null, gMain = null, g2 = null;
+  /* real sound: the clips made by the sonification step (read from the "Our results" tab) */
+  var clips = [], bufs = {}, rsrc = null, runId = 0;
+  Array.prototype.forEach.call(document.querySelectorAll('.clips audio'), function (a) {
+    var b = a.parentNode.querySelector('b');
+    var o = document.createElement('option');
+    o.value = String(clips.length); o.textContent = 'Real LIGO sound: ' + (b ? b.textContent : 'clip ' + (clips.length + 1));
+    clips.push(a.getAttribute('src')); $('snd-src').appendChild(o);
+  });
+  function realMode() { return $('snd-src').value !== 'synth'; }
+  function getBuf(idx, cb) {
+    if (bufs[idx]) return cb(bufs[idx]);
+    fetch(clips[idx]).then(function (r) { return r.arrayBuffer(); }).then(function (ab) {
+      return new Promise(function (ok, no) { AC.decodeAudioData(ab, ok, no); });
+    }).then(function (buf) {
+      var ch = buf.getChannelData(0), blk = Math.max(1, Math.round(buf.sampleRate * 0.05)), best = 0, bi = 0;
+      for (var i = 0; i + blk <= ch.length; i += blk) {
+        var e = 0; for (var j = 0; j < blk; j++) e += ch[i + j] * ch[i + j];
+        if (e > best) { best = e; bi = i; }
+      }
+      buf._peak = (bi + blk / 2) / buf.sampleRate; bufs[idx] = buf; cb(buf);
+    }).catch(function () {});
+  }
+  function realStart() {
+    AC = AC || new (window.AudioContext || window.webkitAudioContext)();
+    if (AC.state === 'suspended') AC.resume();
+    var id = ++runId;
+    getBuf(parseInt($('snd-src').value, 10), function (buf) {
+      if (id !== runId) return;
+      var tmA = S.mode === 'inspiral' ? Math.max(0, T - P.tauM - S.el) : 0;   // seconds until the picture's merger
+      var off = Math.max(0, buf._peak - tmA), delay = Math.max(0, tmA - buf._peak);
+      var g = AC.createGain(); g.gain.value = 0.9; g.connect(AC.destination);
+      rsrc = AC.createBufferSource(); rsrc.buffer = buf; rsrc.connect(g);
+      rsrc.start(AC.currentTime + delay, off);
+    });
+  }
+  function audioStart() {
+    if (!$('snd').checked) return;
+    if (realMode()) { audioStop(true); realStart(); return; }
+    try {
+      AC = AC || new (window.AudioContext || window.webkitAudioContext)();
+      if (AC.state === 'suspended') AC.resume();
+      audioStop(true);
+      osc = AC.createOscillator(); osc2 = AC.createOscillator();
+      gMain = AC.createGain(); g2 = AC.createGain();
+      osc.type = 'sine'; osc2.type = 'triangle';
+      gMain.gain.value = 0; g2.gain.value = 0.35;
+      osc.connect(gMain); osc2.connect(g2); g2.connect(gMain); gMain.connect(AC.destination);
+      osc.frequency.value = P.fA0; osc2.frequency.value = P.fA0 * 2;
+      osc.start(); osc2.start();
+    } catch (e) { osc = osc2 = gMain = null; }
+  }
+  function audioSet(f, a) {
+    if (!osc) return;
+    var t = AC.currentTime;
+    osc.frequency.setTargetAtTime(f, t, 0.02);
+    osc2.frequency.setTargetAtTime(f * 2, t, 0.02);
+    gMain.gain.setTargetAtTime(a, t, 0.03);
+  }
+  function audioStop(now) {
+    if (now) { runId++; if (rsrc) { try { rsrc.stop(); } catch (e) {} rsrc = null; } }
+    if (!osc) return;
+    try {
+      var t = AC.currentTime;
+      gMain.gain.setTargetAtTime(0, t, now ? 0.005 : 0.15);
+      osc.stop(t + (now ? 0.05 : 0.9)); osc2.stop(t + (now ? 0.05 : 0.9));
+    } catch (e) {}
+    osc = osc2 = gMain = null;
+  }
+
+  /* ---------- wiring ---------- */
+  function apply() {
+    m1 = parseFloat($('m1').value); m2 = parseFloat($('m2').value);
+    physics(); readouts(); reset();
+  }
+  $('m1').addEventListener('input', apply);
+  $('m2').addEventListener('input', apply);
+  Array.prototype.forEach.call(document.querySelectorAll('.chip'), function (b) {
+    b.addEventListener('click', function () {
+      $('m1').value = b.getAttribute('data-m1'); $('m2').value = b.getAttribute('data-m2'); apply();
+    });
+  });
+  $('go').addEventListener('click', function () {
+    reset(); S.mode = 'inspiral'; setButton(); audioStart();
+  });
+  $('snd-src').addEventListener('change', function () { $('snd-hint').hidden = !realMode(); reset(); });
+  $('snd').addEventListener('change', function () {
+    if (!$('snd').checked) audioStop(true);
+    else if (S.mode === 'inspiral' || S.mode === 'ring') audioStart();
+  });
+
+  var last = null;
+  function frame(ts) {
+    var dt = last === null ? 0.016 : Math.min(0.05, (ts - last) / 1000);
+    last = ts;
+    step(dt); draw(); drawChirp();
+    requestAnimationFrame(frame);
+  }
+  physics(); readouts(); reset();
+  window.__labStop = function () { audioStop(true); };
+  requestAnimationFrame(frame);
+})();
+</script>
+
+<script>
+(function () {
+  var S = __SCAN_JSON__;
+  var $ = function (id) { return document.getElementById(id); };
+
+  /* ---------- tabs ---------- */
+  var names = ['scan', 'lab', 'res'];
+  Array.prototype.forEach.call(document.querySelectorAll('[data-tab]'), function (b) {
+    b.addEventListener('click', function () {
+      names.forEach(function (n) { $('tab-' + n).hidden = (n !== b.getAttribute('data-tab')); });
+      Array.prototype.forEach.call(document.querySelectorAll('[data-tab]'), function (x) {
+        x.setAttribute('aria-selected', x === b ? 'true' : 'false');
+      });
+      if (window.__labStop) window.__labStop();
+      if (window.__scanStop) window.__scanStop();
+    });
+  });
+
+  if (!S) { $('scan-missing').hidden = false; $('scan-ui').hidden = true; return; }
+
+  /* ---------- data ---------- */
+  var css = getComputedStyle(document.documentElement);
+  function col(n) { return css.getPropertyValue(n).trim(); }
+  var C = { sky: col('--sky'), ink: col('--ink-dim'), line: col('--line'), orange: col('--bh2'),
+            wave: col('--wave'), good: col('--good'), gold: '#ffd76a', red: '#ff6b6b', data: '#8a88b8' };
+  var cv = $('scan'), ctx = cv.getContext('2d');
+  var W = 800, H = 540, dpr = Math.min(window.devicePixelRatio || 1, 2);
+  cv.width = W * dpr; cv.height = H * dpr; ctx.scale(dpr, dpr);
+
+  var t = S.t, data = S.data, tmpl = S.tmpl, nT = tmpl.length, snrT = S.snrT;
+  var curves = { hand: S.snrH, pyc: S.snrP };
+  var src = S.snrP ? 'pyc' : 'hand';
+  if (!S.snrP) { $('s-src-wrap').hidden = true; }
+  var n = S.snrH.length;
+  $('s-pos').max = n - 1;
+
+  var dmax = 0, dsum = 0, tmax = 0, k;
+  for (k = 0; k < data.length; k++) { dmax = Math.max(dmax, Math.abs(data[k])); dsum += data[k] * data[k]; }
+  for (k = 0; k < nT; k++) tmax = Math.max(tmax, Math.abs(tmpl[k]));
+  var dstd = Math.sqrt(dsum / data.length);
+  var tscale = 3 * dstd / tmax;
+
+  function snr() { return curves[src]; }
+  function peakOf(a) { var b = 0; for (var i = 1; i < a.length; i++) if (a[i] > a[b]) b = i; return b; }
+  function maxOf(a) { var m = 0; for (var i = 0; i < a.length; i++) m = Math.max(m, a[i]); return m; }
+  var peak = peakOf(snr()), smax = maxOf(snr());
+
+  /* ---------- layout ---------- */
+  var L = 56, R = W - 18, A = { top: 14, h: 190 }, B = { top: 262, h: 170 }, M = { top: 488, h: 26 };
+  var t0 = t[0], t1 = t[t.length - 1];
+  function xA(v) { return L + (v - t0) / (t1 - t0) * (R - L); }
+  var s0 = snrT[0], s1 = snrT[n - 1];
+  function xB(v) { return L + (v - s0) / (s1 - s0) * (R - L); }
+  function yB(v) { return B.top + B.h - v / (smax * 1.2) * B.h; }
+
+  var thr = 8;
+  function draw(i) {
+    var a = snr(), v = a[i], j, best = 0, bi = 0;
+    for (j = 0; j <= i; j++) if (a[j] > best) { best = a[j]; bi = j; }
+    var found = best >= thr;
+
+    ctx.fillStyle = C.sky; ctx.fillRect(0, 0, W, H);
+    ctx.font = '12px "DM Mono", monospace'; ctx.textBaseline = 'alphabetic';
+
+    // panel A: data + template
+    ctx.fillStyle = C.ink; ctx.textAlign = 'left';
+    ctx.font = '700 14px Nunito, system-ui, sans-serif';
+    ctx.fillText('The template slides along the data', L, A.top - 1);
+    var midA = A.top + A.h / 2;
+    ctx.strokeStyle = C.line; ctx.lineWidth = 1; ctx.strokeRect(L, A.top + 4, R - L, A.h - 4);
+    ctx.fillStyle = 'rgba(255,176,74,0.12)';
+    var xs = xA(t[i]), xe = xA(t[Math.min(t.length - 1, i + nT - 1)]);
+    ctx.fillRect(xs, A.top + 4, xe - xs, A.h - 4);
+    ctx.strokeStyle = C.data; ctx.lineWidth = 0.8; ctx.beginPath();
+    for (j = 0; j < data.length; j++) {
+      var x = xA(t[j]), y = midA - data[j] / dmax * (A.h / 2 - 8);
+      if (j === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+    ctx.strokeStyle = C.orange; ctx.lineWidth = 2; ctx.beginPath();
+    for (j = 0; j < nT && i + j < t.length; j++) {
+      var x2 = xA(t[i + j]), y2 = midA - tmpl[j] * tscale / dmax * (A.h / 2 - 8);
+      if (j === 0) ctx.moveTo(x2, y2); else ctx.lineTo(x2, y2);
+    }
+    ctx.stroke();
+    ctx.fillStyle = C.ink; ctx.textAlign = 'center'; ctx.font = '12px "DM Mono", monospace';
+    for (var tk = Math.ceil(t0); tk <= t1; tk++) ctx.fillText(tk + ' s', xA(tk), A.top + A.h + 16);
+
+    // panel B: SNR so far
+    ctx.fillStyle = C.ink; ctx.textAlign = 'left'; ctx.font = '700 14px Nunito, system-ui, sans-serif';
+    ctx.fillText('Match score (SNR)', L, B.top - 8);
+    ctx.strokeStyle = C.line; ctx.lineWidth = 1; ctx.strokeRect(L, B.top, R - L, B.h);
+    ctx.font = '12px "DM Mono", monospace'; ctx.textAlign = 'right';
+    for (var yv = 0; yv <= smax * 1.2; yv += 5) { ctx.fillStyle = C.ink; ctx.fillText(String(yv), L - 6, yB(yv) + 4); }
+    ctx.strokeStyle = C.red; ctx.setLineDash([5, 4]); ctx.beginPath();
+    ctx.moveTo(L, yB(thr)); ctx.lineTo(R, yB(thr)); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = C.red; ctx.textAlign = 'right'; ctx.fillText('detection threshold ' + thr, R - 6, yB(thr) - 5);
+    ctx.strokeStyle = C.wave; ctx.lineWidth = 1.6; ctx.beginPath();
+    for (j = 0; j <= i; j++) { var xb = xB(snrT[j]), yb = yB(a[j]); if (j === 0) ctx.moveTo(xb, yb); else ctx.lineTo(xb, yb); }
+    ctx.stroke();
+    ctx.fillStyle = C.gold; ctx.beginPath(); ctx.arc(xB(snrT[i]), yB(v), 5, 0, 6.2832); ctx.fill();
+    ctx.textAlign = 'center'; ctx.fillStyle = C.ink; ctx.font = '12px "DM Mono", monospace';
+    for (var tb = Math.ceil(s0); tb <= s1; tb++) ctx.fillText(tb + ' s', xB(tb), B.top + B.h + 16);
+
+    // message
+    ctx.font = '800 17px Nunito, system-ui, sans-serif'; ctx.textAlign = 'left';
+    var msg = found ? 'SIGNAL FOUND!  SNR = ' + best.toFixed(1) : 'Searching...  best so far: ' + best.toFixed(1);
+    var mw = ctx.measureText(msg).width + 20;
+    ctx.fillStyle = 'rgba(7,6,20,0.85)'; ctx.fillRect(L + 8, B.top + 8, mw, 28);
+    ctx.fillStyle = found ? C.good : '#ece9ff'; ctx.fillText(msg, L + 18, B.top + 28);
+
+    // panel C: meter
+    ctx.strokeStyle = C.line; ctx.strokeRect(L, M.top, R - L, M.h);
+    ctx.fillStyle = v >= thr ? C.good : C.wave;
+    ctx.fillRect(L, M.top, Math.max(0, v / (smax * 1.2)) * (R - L), M.h);
+    ctx.strokeStyle = C.red; ctx.beginPath(); ctx.moveTo(xMeter(thr), M.top - 3); ctx.lineTo(xMeter(thr), M.top + M.h + 3); ctx.stroke();
+    ctx.fillStyle = C.ink; ctx.textAlign = 'left'; ctx.font = '12px "DM Mono", monospace';
+    ctx.fillText('match score right now: ' + v.toFixed(1), L, M.top + M.h + 16);
+    return best;
+  }
+  function xMeter(v) { return L + v / (smax * 1.2) * (R - L); }
+
+  /* ---------- sound (driven by the same loop as the picture, so they stay in sync) ---------- */
+  var AC = null, osc = null, g = null, scrubTimer = null;
+  function sndOn() { return $('s-snd').checked; }
+  function ensureCtx() {
+    try { AC = AC || new (window.AudioContext || window.webkitAudioContext)(); if (AC.state === 'suspended') AC.resume(); return true; }
+    catch (e) { return false; }
+  }
+  function toneStart() {
+    if (osc || !sndOn() || !ensureCtx()) return;
+    osc = AC.createOscillator(); g = AC.createGain();
+    osc.type = 'sine'; g.gain.value = 0; osc.connect(g); g.connect(AC.destination); osc.start();
+  }
+  function toneSet(v) {
+    if (!osc) return;
+    var tt = AC.currentTime;
+    osc.frequency.setTargetAtTime(200 + 40 * v, tt, 0.02);
+    g.gain.setTargetAtTime(0.06 + 0.4 * Math.min(1, v / smax), tt, 0.03);
+  }
+  function toneStop() {
+    if (!osc) return;
+    try { var tt = AC.currentTime; g.gain.setTargetAtTime(0, tt, 0.05); osc.stop(tt + 0.3); } catch (e) {}
+    osc = null; g = null;
+  }
+  function bell() {
+    if (!sndOn() || !ensureCtx()) return;
+    var tt = AC.currentTime;
+    [1500, 2250].forEach(function (f, q) {
+      var o = AC.createOscillator(), gg = AC.createGain();
+      o.frequency.value = f; gg.gain.setValueAtTime(q ? 0.12 : 0.25, tt);
+      gg.gain.exponentialRampToValueAtTime(0.0005, tt + 0.9);
+      o.connect(gg); gg.connect(AC.destination); o.start(tt); o.stop(tt + 1);
+    });
+  }
+
+  /* ---------- playback ---------- */
+  var p = 0, playing = false, held = false, holdUntil = 0, last = null;
+  function rate() { return n / 10 * parseFloat($('s-speed').value); }   // positions per second
+  function setBtn() { $('s-play').textContent = playing ? 'Pause' : (p >= n - 1 ? 'Play again' : 'Play the search'); }
+
+  function frame(ts) {
+    var dt = last === null ? 0 : Math.min(0.05, (ts - last) / 1000); last = ts;
+    if (playing) {
+      if (holdUntil && ts < holdUntil) { /* pausing on the discovery */ }
+      else {
+        holdUntil = 0;
+        p += rate() * dt;
+        if (!held && p >= peak) { p = peak; held = true; holdUntil = ts + 1600; bell(); }
+        if (p >= n - 1) { p = n - 1; playing = false; toneStop(); setBtn(); }
+      }
+    }
+    var i = Math.max(0, Math.min(n - 1, Math.round(p)));
+    draw(i);
+    if (playing) { $('s-pos').value = i; toneSet(snr()[i]); }
+    requestAnimationFrame(frame);
+  }
+
+  $('s-play').addEventListener('click', function () {
+    if (playing) { playing = false; toneStop(); setBtn(); return; }
+    if (p >= n - 1) { p = 0; held = false; }
+    playing = true; holdUntil = 0; toneStart(); setBtn();
+  });
+  $('s-restart').addEventListener('click', function () {
+    p = 0; held = false; holdUntil = 0; $('s-pos').value = 0; playing = true; toneStop(); toneStart(); setBtn();
+  });
+  $('s-pos').addEventListener('input', function () {
+    playing = false; setBtn();
+    p = parseFloat(this.value); held = p > peak;
+    if (sndOn()) { toneStart(); toneSet(snr()[Math.round(p)]); clearTimeout(scrubTimer); scrubTimer = setTimeout(toneStop, 350); }
+  });
+  $('s-thr').addEventListener('input', function () { thr = parseFloat(this.value); $('s-thr-o').textContent = thr; });
+  $('s-snd').addEventListener('change', function () { if (!sndOn()) toneStop(); else if (playing) toneStart(); });
+  $('s-src').addEventListener('change', function () {
+    src = this.value; peak = peakOf(snr()); smax = maxOf(snr()); held = p > peak; noteText();
+  });
+  function noteText() {
+    $('s-note').textContent = 'Template masses (detector frame): ' + S.masses[0] + ' + ' + S.masses[1] +
+      ' solar masses. Peak SNR in this curve: ' + smax.toFixed(1) + '. The data is the public LIGO recording of GW150914, cleaned by our pipeline.';
+  }
+  noteText();
+  window.__scanStop = function () { playing = false; toneStop(); setBtn(); };
+  setBtn();
+  requestAnimationFrame(frame);
+})();
+</script>
